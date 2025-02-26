@@ -18,18 +18,16 @@ def communicate(host: str, port: int, message: str) -> str:
     :return:  The decoded response from the remote host.
     :raises Exception: if any error occurs
     """
-
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((host, port))
         s.sendall(message.encode())
         response = s.recv(4096)
         s.close()
-
         return response.decode()
-
     except Exception as e:
         raise Exception(f"Communication error with {host}:{port} - {e}")
+
 
 def run_command(command: str) -> str:
     """
@@ -38,10 +36,8 @@ def run_command(command: str) -> str:
     :return: decoded output of the command
     :raises Exception: If the command exits with a non-zero status
     """
-
     try:
         output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
         return output.decode()
     except subprocess.CalledProcessError as e:
         raise Exception(f"Command failed: {command}\nOutput: {e.output.decode()}")
-
