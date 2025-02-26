@@ -20,6 +20,11 @@ DISPATCHER_PORT = 8888
 TEST_RUNNER_PORT_RANGE = (8900, 9000)
 
 # ------------------------------------------------------------------------------
+# Repository Observer Settings
+# ------------------------------------------------------------------------------
+REPO_POLL_INTERVAL = 5  # seconds between polling cycles
+
+# ------------------------------------------------------------------------------
 # Heartbeat Settings
 # ------------------------------------------------------------------------------
 HEARTBEAT_TIMEOUT = 10  # seconds before considering a runner unresponsive
@@ -38,3 +43,4 @@ TEST_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 # Logging Settings
 # ------------------------------------------------------------------------------
 LOG_LEVEL = "DEBUG"
+
