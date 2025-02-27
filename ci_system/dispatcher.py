@@ -26,7 +26,11 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
     BUF_SIZE = 1024
 
     def handle(self):
-        data = self.request.recv(self.BUF_SIZE).strip().decode()
+        """
+        handle incoming request from clients based on commands(status, register, dispatch, results)
+        :return:
+        """
+        data = self.request.recv(DispatcherHandler.BUF_SIZE).strip().decode()
         print("Dispatcher received:", data)
         parts = data.split(":", 1)
         command = parts[0]
@@ -71,7 +75,7 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
                     return
                 # Ensure full data is received.
                 while len(result_data) < expected_length:
-                    result_data += self.request.recv(self.BUF_SIZE).decode()
+                    result_data += self.request.recv(DispatcherHandler.BUF_SIZE).decode()
                 os.makedirs(config.TEST_RESULTS_DIR, exist_ok=True)
                 file_path = os.path.join(config.TEST_RESULTS_DIR, commit_id)
                 with open(file_path, "w") as f:
