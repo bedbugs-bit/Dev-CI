@@ -13,7 +13,7 @@ import socket
 from pathlib import Path
 
 from ci_system import config, helpers
-def poll():
+def scan():
     # Parse command-line arguments.
     parser = argparse.ArgumentParser(description="Repository Observer for the CI system")
     parser.add_argument("--dispatcher-server", default="localhost:8888",
@@ -25,7 +25,7 @@ def poll():
     dispatcher_host, dispatcher_port = args.dispatcher_server.split(":")
     dispatcher_port = int(dispatcher_port)
 
-    # Main polling loop.
+    # Main scanning loop, infinite while loop
     while True:
         try:
             # Update the repository using the shell script.
@@ -57,4 +57,4 @@ def poll():
         time.sleep(config.REPO_POLL_INTERVAL)
 
 if __name__ == "__main__":
-    poll()
+    scan()

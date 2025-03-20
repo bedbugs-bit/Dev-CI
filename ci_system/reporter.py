@@ -36,4 +36,4 @@ def show_result(commit_id):
 
 if __name__ == "__main__":
     # Run the Flask app on host 0.0.0.0 to allow external access.
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5050, debug=True)
