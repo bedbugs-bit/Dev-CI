@@ -8,7 +8,6 @@ It uses subprocess to launch new test runner processes
 import argparse
 import subprocess
 import time
-import os
 from ci_system import config
 
 
