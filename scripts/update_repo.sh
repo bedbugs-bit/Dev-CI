@@ -18,18 +18,20 @@ pushd "$1" > /dev/null || { echo "Repository folder not found!"; exit 1; }
 run_or_fail "Could not reset git" git reset --hard HEAD
 
 # Capture the current commit ID.
-COMMIT=$(run_or_fail "Could not get current commit" git log -n1)
-COMMIT_ID=$(echo $COMMIT | awk '{ print $2 }')
+COMMIT_ID=$(git log -n1 --pretty=format:"%H") || { echo "Could not get current commit"; exit 1; }
 
 # Pull the latest changes.
 run_or_fail "Could not pull repository" git pull
 
 # Capture the new commit ID.
-NEW_COMMIT=$(run_or_fail "Could not get new commit" git log -n1)
-NEW_COMMIT_ID=$(echo $NEW_COMMIT | awk '{ print $2 }')
+NEW_COMMIT_ID=$(git log -n1 --pretty=format:"%H") || { echo "Could not get new commit"; exit 1; }
 
 # If the commit IDs differ, output the new commit hash.
 if [ "$NEW_COMMIT_ID" != "$COMMIT_ID" ]; then
+    # shellcheck disable=SC2164
     popd > /dev/null
-    echo $NEW_COMMIT_ID > .commit_id
+    echo "$NEW_COMMIT_ID" > .commit_id
+    echo "Repository updated! New commit ID: $NEW_COMMIT_ID"
+else
+  echo "No changes detected"
 fi

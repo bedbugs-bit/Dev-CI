@@ -6,63 +6,71 @@ It uses subprocess to launch new test runner processes
 """
 
 import argparse
+import logging
+import os
 import subprocess
 import time
-import os
+from typing import List
+
 from ci_system import config
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
 
-def spawn_test_runner(repo_clone_path, dispatcher_server, host="localhost", port=0):
-    """
-    Spawns a new test runner process.
+class RunnerManager:
+    """Manages test runner processes"""
+    def __init__(self, repo_path: str, dispatcher_server: str):
+        self.repo_path = repo_path
+        self.dispatcher_server = dispatcher_server
+        self.processes: List[subprocess.Popen] = []
 
-    Args:
-        repo_clone_path (str): Path to the repository clone.
-        dispatcher_server (str): Dispatcher server in the form host:port.
-        host (str): Host on which to run the test runner.
-        port (int): Port for the test runner (0 for auto-assignment).
+    def maintain_pool(self, desired_count: int) -> None:
+        """Maintain desired number of runners"""
+        # Clean up terminated processes
+        self.processes = [p for p in self.processes if p.poll() is None]
+        
+        # Spawn new runners if needed
+        while len(self.processes) < desired_count:
+            self._spawn_runner()
+            
 
-    Returns:
-        subprocess.Popen: Handle to the spawned process.
-    """
-    command = ["python", "ci_system/test_runner.py", repo_clone_path,
-               "--host", host,
-               "--port", str(port),
-               "--dispatcher-server", dispatcher_server]
-    proc = subprocess.Popen(command)
-    return proc
-
-
-def monitor_and_scale(repo_clone_path, dispatcher_server, desired_count):
-    """
-    Monitors active test runner processes and spawns new ones to meet the desired count.
-
-    Args:
-        repo_clone_path (str): Path to repository clone.
-        dispatcher_server (str): Dispatcher server address (host:port).
-        desired_count (int): Desired number of concurrent test runners.
-    """
-    runners = []
-    while True:
-        # Filter out processes that have terminated.
-        runners = [r for r in runners if r.poll() is None]
-        if len(runners) < desired_count:
-            new_runner = spawn_test_runner(repo_clone_path, dispatcher_server)
-            runners.append(new_runner)
-            print(f"Spawned new test runner. Total active runners: {len(runners)}")
-        time.sleep(10)  # Check every 10 seconds.
-
+    def _spawn_runner(self) -> None:
+        """Launch new test runner process"""
+        try:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "/Users/uzo/Desktop/SWE/Python/CI Project/Dev CI"  # Add the parent directory of ci_system
+            
+            proc = subprocess.Popen([
+                "python", "ci_system/test_runner.py",
+                self.repo_path,
+                "--dispatcher-server", self.dispatcher_server,
+                "--host", config.TEST_RUNNER_HOST,
+            ], env=env)
+            self.processes.append(proc)
+            logger.info(f"Spawned runner PID: {proc.pid}")
+        except Exception as e:
+            logger.error(f"Failed to spawn runner: {e}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Test Runner Manager for CI system")
-    parser.add_argument("repo_clone_path", help="Path to repository clone for testing")
+    parser = argparse.ArgumentParser(description="Test Runner Manager")
+    parser.add_argument("repo_path", help="Path to repository clone")
     parser.add_argument("--dispatcher-server", default="localhost:8888",
-                        help="Dispatcher server host:port (default: localhost:8888)")
-    parser.add_argument("--desired-count", default=2, type=int,
-                        help="Desired number of active test runners")
+                        help="Dispatcher server host:port")
+    parser.add_argument("--desired-count", type=int, default=2,
+                        help="Target number of runners")
+    
     args = parser.parse_args()
-    monitor_and_scale(args.repo_clone_path, args.dispatcher_server, args.desired_count)
-
+    manager = RunnerManager(args.repo_path, args.dispatcher_server)
+    
+    logger.info("Starting runner manager")
+    try:
+        while True:
+            manager.maintain_pool(args.desired_count)
+            time.sleep(config.RUNNER_CHECK_INTERVAL)
+    except KeyboardInterrupt:
+        logger.info("Shutting down manager")
+        for proc in manager.processes:
+            proc.terminate()
 
 if __name__ == "__main__":
     main()
