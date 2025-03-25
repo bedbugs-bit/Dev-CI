@@ -16,7 +16,7 @@ import re
 import threading
 import time
 import socketserver
-from collections import deque  
+from collections import deque
 
 from ci_system import config, helpers
 
@@ -32,12 +32,23 @@ commits_lock = threading.Lock()
 
 
 class DispatcherHandler(socketserver.BaseRequestHandler):
+    """
+    Handles incoming requests to the dispatcher server.
+
+    Commands and their expected arguments:
+    - "status": No argument required. Used to check if the dispatcher is available.
+    - "register": Argument is the socket address of the runner in the format "host:port".
+    - "dispatch": Argument is the commit ID to be dispatched to a test runner.
+    - "results": Argument is a combination of:
+        - commit ID
+        - result length (integer)
+        - result data (string)
+      Format: "commit_id:length:result_data"
+    """
+
     BUF_SIZE = 1024
-    # Matches command and optional arguments
-    # 
     COMMAND_REGEX = re.compile(r"(\w+)(:.+)*")
-    # matches command:host:port for example register:localhost:8888
-    
+
     def handle(self):
         try:
             raw_data = self.request.recv(self.BUF_SIZE).strip().decode()
@@ -51,19 +62,21 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
             self.request.sendall("Invalid command".encode())
             return
 
-        command = match.group(1)
-        argument = match.group(2)[1:] if match.group(2) else None
+        command = match.group(1)  # e.g status, register, dispatch, results
+        argument = match.group(2)[1:] if match.group(
+            2) else None  # extract the argument if any
 
+        # Check if the dispatcher is available
         if command == "status":
             print("[Dispatcher] Status check received")
             self.request.sendall("OK".encode())
-
+        # Register a new runner
         elif command == "register":
             self._handle_register(argument)
-
+        # Dispatch tests for a commit
         elif command == "dispatch":
             self._handle_dispatch(argument)
-
+        # Receive test results
         elif command == "results":
             self._handle_results(argument)
 
@@ -71,6 +84,13 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
             self.request.sendall("Unknown command".encode())
 
     def _handle_register(self, argument):
+        """
+        Handles the "register" command to register a new test runner.
+
+        Argument:
+        - A socket address in the format "host:port".
+
+        """
         if not argument:
             self.request.sendall("Missing runner info".encode())
             return
@@ -82,6 +102,7 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
 
             with runners_lock:
                 # Prevent duplicate registrations
+
                 if not any(r["host"] == host and r["port"] == port for r in registered_runners):
                     registered_runners.append(runner)
                     print(f"[Dispatcher] Registered runner: {host}:{port}")
@@ -95,8 +116,15 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
             self.request.sendall(error_msg.encode())
 
     def _handle_dispatch(self, argument):
+        """
+        Handles the "dispatch" command to assign a commit to a test runner.
+
+        Argument:
+        - The commit ID to be dispatched.
+        """
         commit_id = argument if argument else ""
         with runners_lock:
+
             if not registered_runners:
                 self.request.sendall("No runners available".encode())
                 return
@@ -105,6 +133,13 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
         dispatch_tests(commit_id)
 
     def _handle_results(self, argument):
+        """
+        Handles the "results" command to receive test results from a runner.
+
+        Argument:
+        - A string containing the commit ID, result length, and result data.
+        """
+
         if not argument:
             self.request.sendall("Missing results data".encode())
             return
@@ -134,8 +169,8 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
         try:
             os.makedirs(config.TEST_RESULTS_DIR, exist_ok=True)
             file_path = os.path.join(config.TEST_RESULTS_DIR, commit_id)
-            with open(file_path, "w") as f:
-                f.write(result_data)
+            with open(file_path, "w") as f_obj:
+                f_obj.write(result_data)
 
             with commits_lock:
                 if commit_id in dispatched_commits:
