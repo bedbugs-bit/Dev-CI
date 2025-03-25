@@ -7,6 +7,7 @@ It uses subprocess to launch new test runner processes
 
 import argparse
 import logging
+import os
 import subprocess
 import time
 from typing import List
@@ -32,16 +33,19 @@ class RunnerManager:
         while len(self.processes) < desired_count:
             self._spawn_runner()
             
+
     def _spawn_runner(self) -> None:
         """Launch new test runner process"""
         try:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = "/Users/uzo/Desktop/SWE/Python/CI Project/Dev CI"  # Add the parent directory of ci_system
+            
             proc = subprocess.Popen([
                 "python", "ci_system/test_runner.py",
                 self.repo_path,
                 "--dispatcher-server", self.dispatcher_server,
                 "--host", config.TEST_RUNNER_HOST,
-                "--port", str(config.TEST_RUNNER_PORT)
-            ])
+            ], env=env)
             self.processes.append(proc)
             logger.info(f"Spawned runner PID: {proc.pid}")
         except Exception as e:
