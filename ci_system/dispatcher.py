@@ -17,6 +17,7 @@ import threading
 import time
 import socketserver
 from collections import deque
+from pathlib import Path
 
 from ci_system import config, helpers
 
@@ -167,8 +168,14 @@ class DispatcherHandler(socketserver.BaseRequestHandler):
                 return
 
         try:
-            os.makedirs(config.TEST_RESULTS_DIR, exist_ok=True)
-            file_path = os.path.join(config.TEST_RESULTS_DIR, commit_id)
+
+            # os.makedirs(config.TEST_RESULTS_DIR, exist_ok=True)
+            # file_path = os.path.join(config.TEST_RESULTS_DIR, commit_id)
+            # Handle for multiple OS compatibility
+            Path(config.TEST_RESULTS_DIR).mkdir(parents=True, exist_ok=True)
+            file_path = config.TEST_RESULTS_DIR / commit_id
+
+
             with open(file_path, "w") as f_obj:
                 f_obj.write(result_data)
 
@@ -233,7 +240,7 @@ def remove_runner(runner):
                 requeued.append(commit_id)
 
     if requeued:
-        print(f"[Dispatcher] Requeued commits: {requeued}")
+        print(f"[Dispatcher] Re-queued commits: {requeued}")
 
 
 def redistribute(server):
